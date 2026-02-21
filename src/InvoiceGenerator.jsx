@@ -47,6 +47,14 @@ function InvoiceGenerator() {
   useEffect(() => { localStorage.setItem(FONT_KEY, JSON.stringify(font)); }, [font]);
   useEffect(() => { localStorage.setItem(DRAFT_KEY, JSON.stringify(pages)); }, [pages]);
 
+  // Responsive scale: shrink A4 (794px wide) to fit the viewport on mobile/tablet
+  const [pageScale, setPageScale] = useState(() => Math.min(1, (window.innerWidth - 16) / 794));
+  useEffect(() => {
+    const update = () => setPageScale(Math.min(1, (window.innerWidth - 16) / 794));
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   const onFieldChange = useCallback((pageIndex, field, value) => {
     setPages(prev => prev.map((p, i) => i === pageIndex ? { ...p, [field]: value } : p));
   }, []);
@@ -225,42 +233,42 @@ function InvoiceGenerator() {
   }
 
   return (
-    <div className="invoice-outer min-h-screen bg-gray-300 py-6 px-4">
+    <div className="invoice-outer min-h-screen bg-gray-300 py-4 px-2 sm:py-6 sm:px-4">
 
       {/* Top bar */}
-      <div className="no-print max-w-[210mm] mx-auto mb-4 flex flex-wrap items-center gap-3">
+      <div className="no-print max-w-[210mm] mx-auto mb-4 flex flex-wrap items-center gap-2">
         <button onClick={() => window.print()}
-          className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow">
+          className="px-3 py-2 sm:px-6 sm:py-3 bg-green-600 hover:bg-green-700 text-white text-sm sm:text-base font-semibold rounded-lg shadow">
           🖨 Print
         </button>
         <button onClick={handleDownloadPDF} disabled={pdfDownloading}
-          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-lg">
-          {pdfDownloading ? '⏳ Generating…' : '📄 Download PDF'}
+          className="px-3 py-2 sm:px-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-sm sm:text-base rounded-lg">
+          {pdfDownloading ? '⏳ Generating…' : '📄 PDF'}
         </button>
         <button
           title="Ctrl+Backspace when in a row"
           onClick={() => {
             if (activeRow) onRemoveRow(activeRow.pageIndex, activeRow.rowIndex);
-            else alert('Click into any field on the row you want to remove first.');
+            else alert('Tap into any field on the row you want to remove first.');
           }}
-          className={`px-4 py-2 rounded-lg ${activeRow ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>
+          className={`px-3 py-2 sm:px-4 text-sm sm:text-base rounded-lg ${activeRow ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>
           ➖ Remove Row
         </button>
         <button onClick={() => { if (window.confirm('Clear all fields?')) setPages([emptyPage()]); }}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
-          🗑 Clear All
+          className="px-3 py-2 sm:px-4 text-sm sm:text-base bg-red-600 hover:bg-red-700 text-white rounded-lg">
+          🗑 Clear
         </button>
         <button onClick={() => { setShowFont(s => !s); setShowCalibration(false); }}
-          className={`px-4 py-2 rounded-lg ${showFont ? 'bg-blue-500 text-white' : 'bg-gray-500 hover:bg-gray-600 text-white'}`}>
+          className={`px-3 py-2 sm:px-4 text-sm sm:text-base rounded-lg ${showFont ? 'bg-blue-500 text-white' : 'bg-gray-500 hover:bg-gray-600 text-white'}`}>
           🅰 Font
         </button>
         <button onClick={() => { setShowCalibration(s => !s); setShowFont(false); }}
-          className={`px-4 py-2 rounded-lg ${showCalibration ? 'bg-yellow-500 text-white' : 'bg-gray-500 hover:bg-gray-600 text-white'}`}>
-          ⚙ Alignment
+          className={`px-3 py-2 sm:px-4 text-sm sm:text-base rounded-lg ${showCalibration ? 'bg-yellow-500 text-white' : 'bg-gray-500 hover:bg-gray-600 text-white'}`}>
+          ⚙ Align
         </button>
         <button onClick={() => setDragMode(s => !s)}
-          className={`px-4 py-2 rounded-lg font-medium ${dragMode ? 'bg-orange-500 text-white ring-2 ring-orange-300' : 'bg-purple-600 hover:bg-purple-700 text-white'}`}>
-          {dragMode ? '✋ Dragging ON — click to exit' : '↕ Adjust Fields'}
+          className={`px-3 py-2 sm:px-4 text-sm sm:text-base rounded-lg font-medium ${dragMode ? 'bg-orange-500 text-white ring-2 ring-orange-300' : 'bg-purple-600 hover:bg-purple-700 text-white'}`}>
+          {dragMode ? '✋ Done' : '↕ Adjust'}
         </button>
       </div>
 
@@ -350,25 +358,34 @@ function InvoiceGenerator() {
               {index > 0 && <span className="text-sm text-gray-500">Page {index + 1}</span>}
             </div>
 
-            <InvoicePage
-              pageIndex={index}
-              calibration={calibration}
-              layout={layout}
-              font={font}
-              dragMode={dragMode}
-              onLayoutMove={onLayoutMove}
-              onLayoutResize={onLayoutResize}
-              billNo={page.billNo}   date={page.date}
-              challanNo={page.challanNo}   dispatchThrough={page.dispatchThrough}   poNo={page.poNo}
-              ms={page.ms}   address1={page.address1}   address2={page.address2}
-              lineItems={page.lineItems}
-              pageTotalRs={page.totalRs}   pageTotalP={page.totalP}
-              onFieldChange={onFieldChange}
-              onRemoveRow={onRemoveRow}
-              onRowFocus={onRowFocus}
-              onUpdateLineItem={onUpdateLineItem}
-              isContinued={index > 0}
-            />
+            {/* Scale wrapper — shrinks A4 to fit viewport on mobile/tablet */}
+            <div style={{
+              width:  `${794 * pageScale}px`,
+              height: `${1122 * pageScale}px`,
+              overflow: 'hidden',
+            }}>
+              <div style={{ transform: `scale(${pageScale})`, transformOrigin: 'top left' }}>
+                <InvoicePage
+                  pageIndex={index}
+                  calibration={calibration}
+                  layout={layout}
+                  font={font}
+                  dragMode={dragMode}
+                  onLayoutMove={onLayoutMove}
+                  onLayoutResize={onLayoutResize}
+                  billNo={page.billNo}   date={page.date}
+                  challanNo={page.challanNo}   dispatchThrough={page.dispatchThrough}   poNo={page.poNo}
+                  ms={page.ms}   address1={page.address1}   address2={page.address2}
+                  lineItems={page.lineItems}
+                  pageTotalRs={page.totalRs}   pageTotalP={page.totalP}
+                  onFieldChange={onFieldChange}
+                  onRemoveRow={onRemoveRow}
+                  onRowFocus={onRowFocus}
+                  onUpdateLineItem={onUpdateLineItem}
+                  isContinued={index > 0}
+                />
+              </div>
+            </div>
           </div>
         ))}
         <div className="no-print">
