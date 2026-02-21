@@ -1,0 +1,196 @@
+/* Invoice Generator - Print & Screen Styles */
+
+/* A4 page container */
+.invoice-a4 {
+  width: 210mm;
+  height: 297mm;
+  position: relative;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  /* Font CSS variables — overridden per-page via inline style */
+  --field-font-family: Arial, sans-serif;
+  --field-font-size:   11pt;
+  --field-font-weight: normal;
+  --field-font-style:  normal;
+}
+
+/* Faded guide layer: the scanned invoice image behind the fields */
+.invoice-guide {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  z-index: 0;
+}
+
+/* All editable fields */
+.invoice-field {
+  position: absolute;
+  font-family: var(--field-font-family);
+  font-size:   var(--field-font-size);
+  font-weight: var(--field-font-weight);
+  font-style:  var(--field-font-style);
+  line-height: 1.3;
+  background: #EEF4FF;
+  border: 1px solid #B8D4FF;
+  padding: 1px 3px;
+  box-sizing: border-box;
+  z-index: 1;
+  color: #000;
+}
+
+.invoice-field:focus {
+  outline: 2px solid #3B82F6;
+  outline-offset: 0;
+}
+
+.invoice-field::placeholder {
+  color: #94A3B8;
+  font-size: 9pt;
+}
+
+/* Drag mode: visual feedback */
+.invoice-field.drag-enabled {
+  cursor: move !important;
+  border: 1px dashed #F97316 !important;
+  background: rgba(255, 237, 213, 0.6) !important;
+  user-select: none;
+}
+
+.invoice-field.drag-enabled:hover {
+  background: rgba(251, 191, 36, 0.3) !important;
+  border-color: #EA580C !important;
+}
+
+/* Width resize handle — shown in drag mode on right edge of each field */
+.field-resize-handle {
+  position: absolute;
+  width: 5px;
+  cursor: ew-resize !important;
+  background: #3B82F6;
+  opacity: 0.55;
+  z-index: 10;
+  border-radius: 0 2px 2px 0;
+  pointer-events: auto;
+}
+.field-resize-handle:hover {
+  opacity: 1;
+}
+
+/* Height resize handle — shown in drag mode at the bottom of the table */
+.field-resize-handle-bottom {
+  position: absolute;
+  height: 5px;
+  cursor: ns-resize !important;
+  background: #3B82F6;
+  opacity: 0.55;
+  z-index: 10;
+  border-radius: 2px;
+  pointer-events: auto;
+}
+.field-resize-handle-bottom:hover {
+  opacity: 1;
+}
+
+/* Row delete button */
+.invoice-row-delete {
+  position: absolute;
+  left: 2mm;
+  width: 12mm;
+  height: 6mm;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9pt;
+  padding: 0;
+  min-width: unset;
+  background: #FEE2E2;
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.invoice-row-delete:hover {
+  background: #FECACA;
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* Strip all outer container spacing so the invoice sits flush at 0,0 */
+  .invoice-outer {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+    min-height: unset !important;
+  }
+
+  .invoice-pages-wrap {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+  }
+
+  .invoice-page-item {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+  }
+
+  .invoice-a4 {
+    box-shadow: none !important;
+    break-after: always;
+    overflow: visible;
+    margin: 0 !important;
+  }
+
+  .invoice-a4:last-child {
+    break-after: auto;
+  }
+
+  .invoice-guide {
+    display: none !important;
+  }
+
+  .invoice-field {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    padding: 0 !important;
+  }
+
+  .invoice-field::placeholder {
+    color: transparent !important;
+  }
+
+  .invoice-row-delete {
+    display: none !important;
+  }
+
+  .field-resize-handle,
+  .field-resize-handle-bottom {
+    display: none !important;
+  }
+
+  .invoice-page-wrapper {
+    box-shadow: none !important;
+  }
+}
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
