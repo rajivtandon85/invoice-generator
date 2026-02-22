@@ -7,6 +7,31 @@ const CALIBRATION_KEY = 'invoice-calibration';
 const DRAFT_KEY       = 'invoice-draft';
 const FONT_KEY        = 'invoice-font';
 
+// ── Number to words (Indian system: lakhs & crores) ───────────────────────
+const _ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+               'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+               'Seventeen', 'Eighteen', 'Nineteen'];
+const _TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+function _toWords(n) {
+  if (n === 0) return '';
+  if (n < 20)  return _ONES[n];
+  if (n < 100) return _TENS[Math.floor(n / 10)] + (n % 10 ? ' ' + _ONES[n % 10] : '');
+  if (n < 1000)      return _ONES[Math.floor(n / 100)]   + ' Hundred'   + (n % 100   ? ' ' + _toWords(n % 100)   : '');
+  if (n < 100000)    return _toWords(Math.floor(n / 1000))    + ' Thousand' + (n % 1000    ? ' ' + _toWords(n % 1000)    : '');
+  if (n < 10000000)  return _toWords(Math.floor(n / 100000))  + ' Lakh'     + (n % 100000  ? ' ' + _toWords(n % 100000)  : '');
+  return               _toWords(Math.floor(n / 10000000)) + ' Crore'    + (n % 10000000 ? ' ' + _toWords(n % 10000000) : '');
+}
+
+function amountToWords(rs, p) {
+  const rsNum = parseInt(rs) || 0;
+  const pNum  = parseInt(p)  || 0;
+  if (rsNum === 0 && pNum === 0) return '';
+  let out = 'Rupees ' + (_toWords(rsNum) || 'Zero');
+  if (pNum > 0) out += ' and ' + _toWords(pNum) + ' Paise';
+  return out + ' Only';
+}
+
 const emptyRow = (index = 0) => ({
   sno: String(index + 1), particulars: '', qty: '', rate: '', amountRs: '', amountP: '',
 });
@@ -15,8 +40,19 @@ const emptyPage = () => ({
   billNo: '', date: '', challanNo: '', dispatchThrough: '', poNo: '',
   ms: '', address1: '', address2: '',
   lineItems: [emptyRow(0)],
-  totalRs: '', totalP: '',
+  totalRs: '', totalP: '', amountWords: '',
+  fieldStyles: {}, // per-field font overrides keyed by field name / col_xxx
 });
+
+const FIELD_LABELS = {
+  billNo: 'Bill No.', date: 'Date', challanNo: 'Challan No.',
+  dispatchThrough: 'Dispatch Through', poNo: 'P.O. No',
+  ms: 'M/s', address1: 'Address 1', address2: 'Address 2',
+  totalRs: 'Total Rs', totalP: 'Total Paise', amountWords: 'Amount in Words',
+  col_sno: 'S.No column', col_particulars: 'Particulars column',
+  col_qty: 'Qty column', col_rate: 'Rate column',
+  col_amountRs: 'Amount Rs column', col_amountP: 'Amount P column',
+};
 
 function loadCalibration() {
   try { const s = localStorage.getItem(CALIBRATION_KEY); if (s) { const { top, left } = JSON.parse(s); return { top: top ?? 0, left: left ?? 0 }; } } catch (_) {}
@@ -38,8 +74,16 @@ function InvoiceGenerator() {
   const [showCalibration, setShowCalibration] = useState(false);
   const [showFont, setShowFont]       = useState(false);
   const [dragMode, setDragMode]       = useState(false);
-  const [pages, setPages]             = useState(() => loadDraft() || [emptyPage()]);
-  const [activeRow, setActiveRow]     = useState(null);
+  const [pages, setPages]             = useState(() => {
+    const draft = loadDraft() || [emptyPage()];
+    return draft.map(p => ({
+      ...p,
+      amountWords:  p.amountWords  || amountToWords(p.totalRs, p.totalP),
+      fieldStyles:  p.fieldStyles  || {},
+    }));
+  });
+  const [activeRow, setActiveRow]       = useState(null);
+  const [focusedField, setFocusedField] = useState(null); // { pageIndex, key }
   const [pdfDownloading, setPdfDownloading] = useState(false);
 
   useEffect(() => { localStorage.setItem(CALIBRATION_KEY, JSON.stringify(calibration)); }, [calibration]);
@@ -56,7 +100,16 @@ function InvoiceGenerator() {
   }, []);
 
   const onFieldChange = useCallback((pageIndex, field, value) => {
-    setPages(prev => prev.map((p, i) => i === pageIndex ? { ...p, [field]: value } : p));
+    setPages(prev => prev.map((p, i) => {
+      if (i !== pageIndex) return p;
+      const updated = { ...p, [field]: value };
+      if (field === 'totalRs' || field === 'totalP') {
+        const rs = field === 'totalRs' ? value : p.totalRs;
+        const pa = field === 'totalP'  ? value : p.totalP;
+        updated.amountWords = amountToWords(rs, pa);
+      }
+      return updated;
+    }));
   }, []);
 
   const onAddRow = useCallback((pageIndex) => {
@@ -85,6 +138,32 @@ function InvoiceGenerator() {
     setActiveRow({ pageIndex, rowIndex });
   }, []);
 
+  const onFieldFocus = useCallback((pageIndex, key) => {
+    setFocusedField({ pageIndex, key });
+  }, []);
+
+  const onFieldStyleChange = useCallback((prop, value) => {
+    if (focusedField) {
+      setPages(prev => prev.map((p, i) => {
+        if (i !== focusedField.pageIndex) return p;
+        const fs = p.fieldStyles || {};
+        return { ...p, fieldStyles: { ...fs, [focusedField.key]: { ...(fs[focusedField.key] || {}), [prop]: value } } };
+      }));
+    } else {
+      setFont(f => ({ ...f, [prop]: value }));
+    }
+  }, [focusedField]);
+
+  const onClearFieldStyle = useCallback(() => {
+    if (!focusedField) return;
+    setPages(prev => prev.map((p, i) => {
+      if (i !== focusedField.pageIndex) return p;
+      const fs = { ...p.fieldStyles };
+      delete fs[focusedField.key];
+      return { ...p, fieldStyles: fs };
+    }));
+  }, [focusedField]);
+
   const onUpdateLineItem = useCallback((pageIndex, rowIndex, field, value) => {
     setPages(prev => prev.map((p, i) => {
       if (i !== pageIndex) return p;
@@ -105,7 +184,11 @@ function InvoiceGenerator() {
       const total       = newItems.reduce((acc, it) => acc + (parseFloat(it.amountRs) || 0) + (parseFloat(it.amountP) || 0) / 100, 0);
       const totalRupees = Math.floor(total);
       const totalPaise  = Math.round((total - totalRupees) * 100);
-      return { ...p, lineItems: newItems, totalRs: total > 0 ? String(totalRupees) : '', totalP: totalPaise > 0 ? String(totalPaise) : '' };
+      return { ...p, lineItems: newItems,
+        totalRs: total > 0 ? String(totalRupees) : '',
+        totalP:  totalPaise > 0 ? String(totalPaise) : '',
+        amountWords: amountToWords(total > 0 ? totalRupees : 0, totalPaise > 0 ? totalPaise : 0),
+      };
     }));
   }, []);
 
@@ -164,10 +247,18 @@ function InvoiceGenerator() {
 
       // Map web font names to jsPDF built-in fonts
       const fontMap = { 'Arial': 'helvetica', 'Times New Roman': 'times', 'Courier New': 'courier', 'Georgia': 'times', 'Verdana': 'helvetica' };
-      const pdfFont  = fontMap[font.family] || 'helvetica';
-      const pdfStyle = font.bold && font.italic ? 'bolditalic' : font.bold ? 'bold' : font.italic ? 'italic' : 'normal';
-      // Convert pt font size to mm for baseline offset (cap-height ≈ 72% of font size)
-      const baselineOffset = font.size * 0.3528 * 0.72;
+
+      // Apply effective font for a given field key (global defaults + per-field override)
+      const applyFont = (fieldStyles, key, forceBold = false) => {
+        const fs  = fieldStyles?.[key] || {};
+        const fam = fs.family  !== undefined ? fs.family  : font.family;
+        const sz  = fs.size    !== undefined ? fs.size    : font.size;
+        const bd  = forceBold  ? true : (fs.bold !== undefined ? fs.bold : font.bold);
+        const it  = fs.italic  !== undefined ? fs.italic  : font.italic;
+        pdf.setFont(fontMap[fam] || 'helvetica', bd && it ? 'bolditalic' : bd ? 'bold' : it ? 'italic' : 'normal');
+        pdf.setFontSize(sz);
+        return sz * 0.3528 * 0.72; // baseline offset in mm
+      };
 
       const cal  = calibration;
       const li   = layout.lineItems;
@@ -181,45 +272,58 @@ function InvoiceGenerator() {
 
         // Layer 2 — typed text
         pdf.setFont(pdfFont, pdfStyle);
-        pdf.setFontSize(font.size);
         pdf.setTextColor(0, 0, 0);
+        const fs = page.fieldStyles || {};
 
-        const put = (value, x, y, align = 'left') => {
+        const put = (value, x, y, align = 'left', maxWidth) => {
           if (!value && value !== 0) return;
-          pdf.text(String(value), x, y, { align });
+          const opts = { align };
+          if (maxWidth) opts.maxWidth = maxWidth;
+          pdf.text(String(value), x, y, opts);
         };
 
-        // Header fields
+        // Header fields — each gets its own font
         const hf = (key, align = 'left') => {
-          const f = layout[key]; if (!f) return;
+          const f = layout[key]; if (!f || !page[key]) return;
+          const bo = applyFont(fs, key);
           const x = align === 'right'  ? f.left + cal.left + f.width
                   : align === 'center' ? f.left + cal.left + f.width / 2
                   :                      f.left + cal.left;
-          put(page[key], x, f.top + cal.top + baselineOffset, align);
+          put(page[key], x, f.top + cal.top + bo, align);
         };
         hf('billNo'); hf('date'); hf('challanNo'); hf('dispatchThrough'); hf('poNo');
         hf('ms'); hf('address1'); hf('address2');
 
-        // Line item rows
+        // Line item rows — each column uses its own font
         page.lineItems.forEach((item, idx) => {
-          const y = li.firstRowTop + idx * li.rowHeight + cal.top + baselineOffset;
-          put(item.sno,         cols.sno.left         + cal.left + cols.sno.width / 2,         y, 'center');
-          if (item.particulars) {
-            pdf.text(item.particulars, cols.particulars.left + cal.left, y, { maxWidth: cols.particulars.width });
-          }
-          put(item.qty,         cols.qty.left         + cal.left + cols.qty.width / 2,         y, 'center');
-          put(item.rate,        cols.rate.left         + cal.left + cols.rate.width,            y, 'right');
-          put(item.amountRs,    cols.amountRs.left     + cal.left + cols.amountRs.width,        y, 'right');
-          put(item.amountP,     cols.amountP.left      + cal.left + cols.amountP.width,         y, 'right');
+          const colKeys = ['sno', 'particulars', 'qty', 'rate', 'amountRs', 'amountP'];
+          colKeys.forEach(col => {
+            if (!item[col]) return;
+            const bo  = applyFont(fs, `col_${col}`);
+            const c   = cols[col];
+            const y   = li.firstRowTop + idx * li.rowHeight + cal.top + bo;
+            const al  = col === 'particulars' ? 'left' : (col === 'sno' || col === 'qty') ? 'center' : 'right';
+            const x   = al === 'right'  ? c.left + cal.left + c.width
+                      : al === 'center' ? c.left + cal.left + c.width / 2
+                      :                   c.left + cal.left;
+            put(item[col], x, y, al, col === 'particulars' ? c.width : undefined);
+          });
         });
 
-        // Totals — bold
-        const boldStyle = font.italic ? 'bolditalic' : 'bold';
-        pdf.setFont(pdfFont, boldStyle);
+        // Totals — bold by default
         const trs = layout.totalRs;
         const tp  = layout.totalP;
-        put(page.totalRs, trs.left + cal.left + trs.width, trs.top + cal.top + baselineOffset, 'right');
-        put(page.totalP,  tp.left  + cal.left + tp.width,  tp.top  + cal.top + baselineOffset, 'right');
+        let bo = applyFont(fs, 'totalRs', true);
+        put(page.totalRs, trs.left + cal.left + trs.width, trs.top + cal.top + bo, 'right');
+        bo = applyFont(fs, 'totalP', true);
+        put(page.totalP,  tp.left  + cal.left + tp.width,  tp.top  + cal.top + bo, 'right');
+
+        // Amount in words
+        if (page.amountWords && layout.amountWords) {
+          const aw = layout.amountWords;
+          bo = applyFont(fs, 'amountWords');
+          put(page.amountWords, aw.left + cal.left, aw.top + cal.top + bo, 'left', aw.width);
+        }
       });
 
       const name = pages[0]?.billNo ? `invoice-${pages[0].billNo}.pdf` : 'sterling-invoice.pdf';
@@ -272,35 +376,58 @@ function InvoiceGenerator() {
         </button>
       </div>
 
-      {/* Font panel */}
-      {showFont && (
-        <div className="no-print max-w-[210mm] mx-auto mb-4 p-4 bg-white rounded-lg shadow border border-gray-200">
-          <div className="flex flex-wrap gap-4 items-center">
-            <label className="flex items-center gap-2">
-              <span className="text-sm font-medium">Font</span>
-              <select value={font.family} onChange={e => setFont(f => ({ ...f, family: e.target.value }))}
-                className="border rounded px-2 py-1 text-sm">
-                <option value="Arial">Arial</option>
-                <option value="Times New Roman">Times New Roman</option>
-                <option value="Courier New">Courier New</option>
-                <option value="Georgia">Georgia</option>
-                <option value="Verdana">Verdana</option>
-              </select>
-            </label>
-            <label className="flex items-center gap-2">
-              <span className="text-sm font-medium">Size</span>
-              <input type="number" min={6} max={24} step={1} value={font.size}
-                onChange={e => setFont(f => ({ ...f, size: Number(e.target.value) }))}
-                className="border rounded px-2 py-1 text-sm w-16" />
-              <span className="text-xs text-gray-500">pt</span>
-            </label>
-            <button onClick={() => setFont(f => ({ ...f, bold: !f.bold }))}
-              className={`px-3 py-1 rounded font-bold text-sm border ${font.bold ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}>B</button>
-            <button onClick={() => setFont(f => ({ ...f, italic: !f.italic }))}
-              className={`px-3 py-1 rounded italic text-sm border ${font.italic ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}>I</button>
+      {/* Font panel — context-aware: applies to focused field, or globally if none */}
+      {showFont && (() => {
+        const fp = focusedField;
+        const fieldOverride = fp ? (pages[fp.pageIndex]?.fieldStyles?.[fp.key] || {}) : null;
+        // Effective values shown in controls = field override merged over global defaults
+        const eff = fp ? { ...font, ...fieldOverride } : font;
+        const onChange = (prop, value) => onFieldStyleChange(prop, value);
+        const hasOverride = fp && Object.keys(fieldOverride || {}).length > 0;
+        return (
+          <div className="no-print max-w-[210mm] mx-auto mb-4 p-4 bg-white rounded-lg shadow border border-gray-200">
+            <div className="flex items-center gap-2 mb-3">
+              {fp ? (
+                <>
+                  <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                    {FIELD_LABELS[fp.key] || fp.key}
+                  </span>
+                  {hasOverride && (
+                    <button onClick={onClearFieldStyle}
+                      className="text-xs text-red-500 underline">reset to default</button>
+                  )}
+                </>
+              ) : (
+                <span className="text-xs text-gray-500">Global defaults — click any field first to style just that field</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-4 items-center">
+              <label className="flex items-center gap-2">
+                <span className="text-sm font-medium">Font</span>
+                <select value={eff.family} onChange={e => onChange('family', e.target.value)}
+                  className="border rounded px-2 py-1 text-sm">
+                  <option value="Arial">Arial</option>
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Courier New">Courier New</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Verdana">Verdana</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2">
+                <span className="text-sm font-medium">Size</span>
+                <input type="number" min={6} max={24} step={1} value={eff.size}
+                  onChange={e => onChange('size', Number(e.target.value))}
+                  className="border rounded px-2 py-1 text-sm w-16" />
+                <span className="text-xs text-gray-500">pt</span>
+              </label>
+              <button onClick={() => onChange('bold', !eff.bold)}
+                className={`px-3 py-1 rounded font-bold text-sm border ${eff.bold ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}>B</button>
+              <button onClick={() => onChange('italic', !eff.italic)}
+                className={`px-3 py-1 rounded italic text-sm border ${eff.italic ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}>I</button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Drag mode banner */}
       {dragMode && (
@@ -377,8 +504,10 @@ function InvoiceGenerator() {
                   challanNo={page.challanNo}   dispatchThrough={page.dispatchThrough}   poNo={page.poNo}
                   ms={page.ms}   address1={page.address1}   address2={page.address2}
                   lineItems={page.lineItems}
-                  pageTotalRs={page.totalRs}   pageTotalP={page.totalP}
+                  pageTotalRs={page.totalRs}   pageTotalP={page.totalP}   pageAmountWords={page.amountWords}
+                  fieldStyles={page.fieldStyles || {}}
                   onFieldChange={onFieldChange}
+                  onFieldFocus={onFieldFocus}
                   onRemoveRow={onRemoveRow}
                   onRowFocus={onRowFocus}
                   onUpdateLineItem={onUpdateLineItem}

@@ -23,8 +23,9 @@ function InvoicePage({
   pageIndex, calibration, layout, font, dragMode,
   onLayoutMove, onLayoutResize,
   billNo, date, challanNo, dispatchThrough, poNo, ms, address1, address2,
-  lineItems, pageTotalRs, pageTotalP,
-  onFieldChange, onRemoveRow, onRowFocus, onUpdateLineItem,
+  lineItems, pageTotalRs, pageTotalP, pageAmountWords,
+  fieldStyles = {},
+  onFieldChange, onFieldFocus, onRemoveRow, onRowFocus, onUpdateLineItem,
   isContinued = false,
 }) {
   const a4Ref = useRef(null);
@@ -187,6 +188,18 @@ function InvoicePage({
   const dragCls  = dragMode ? 'invoice-field drag-enabled' : 'invoice-field';
   const dragAttr = (key) => dragMode ? { 'data-drag-key': key } : {};
 
+  // Per-field style override (inline CSS, takes precedence over CSS variables)
+  const fStyle = (key) => {
+    const fs = fieldStyles[key];
+    if (!fs) return {};
+    return {
+      ...(fs.family  !== undefined && { fontFamily:  fs.family }),
+      ...(fs.size    !== undefined && { fontSize:    `${fs.size}pt` }),
+      ...(fs.bold    !== undefined && { fontWeight:  fs.bold   ? 'bold'   : 'normal' }),
+      ...(fs.italic  !== undefined && { fontStyle:   fs.italic ? 'italic' : 'normal' }),
+    };
+  };
+
   const fontStyle = {
     '--field-font-family': font?.family ?? 'Arial',
     '--field-font-size':   `${font?.size ?? 11}pt`,
@@ -208,10 +221,11 @@ function InvoicePage({
         {/* ── Header fields ── */}
         {HEADER_FIELDS.map((field) => (
           <input key={field} type="text" className={dragCls}
-            style={pos(field)} {...dragAttr(field)}
+            style={{ ...pos(field), ...fStyle(field) }} {...dragAttr(field)}
             value={headerValues[field]} readOnly={dragMode}
             placeholder={HEADER_PLACEHOLDERS[field]}
-            onChange={dragMode ? undefined : (e) => onFieldChange(pageIndex, field, e.target.value)} />
+            onChange={dragMode ? undefined : (e) => onFieldChange(pageIndex, field, e.target.value)}
+            onFocus={dragMode ? undefined : () => onFieldFocus(pageIndex, field)} />
         ))}
 
         {/* Resize handles for header fields */}
@@ -224,31 +238,27 @@ function InvoicePage({
           <div key={index}>
             {/* sno — auto-numbered but editable */}
             <input type="text" className={dragCls}
-              style={colAbsPos('sno', index, 'center')}
+              style={{ ...colAbsPos('sno', index, 'center'), ...fStyle('col_sno') }}
               {...dragAttr('col_sno')}
               data-row-cell="1"
               value={item.sno ?? String(index + 1)}
               readOnly={dragMode}
               placeholder={String(index + 1)}
               onChange={dragMode ? undefined : (e) => onUpdateLineItem(pageIndex, index, 'sno', e.target.value)}
-              onFocus={dragMode ? undefined : () => onRowFocus(pageIndex, index)}
+              onFocus={dragMode ? undefined : () => { onRowFocus(pageIndex, index); onFieldFocus(pageIndex, 'col_sno'); }}
             />
 
             {/* particulars — textarea for multi-line support */}
             <textarea
               className={dragCls}
-              style={{
-                ...colAbsPos('particulars', index, 'left'),
-                resize: 'none',
-                overflow: 'hidden',
-              }}
+              style={{ ...colAbsPos('particulars', index, 'left'), ...fStyle('col_particulars'), resize: 'none', overflow: 'hidden' }}
               {...dragAttr('col_particulars')}
               data-row-cell="1"
               value={item.particulars ?? ''}
               readOnly={dragMode}
               placeholder={dragMode ? '' : 'Particulars'}
               onChange={dragMode ? undefined : (e) => onUpdateLineItem(pageIndex, index, 'particulars', e.target.value)}
-              onFocus={dragMode ? undefined : () => onRowFocus(pageIndex, index)}
+              onFocus={dragMode ? undefined : () => { onRowFocus(pageIndex, index); onFieldFocus(pageIndex, 'col_particulars'); }}
               onKeyDown={dragMode ? undefined : (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Backspace') {
                   e.preventDefault();
@@ -262,14 +272,14 @@ function InvoicePage({
               <input key={col} type="text"
                 inputMode={COL_INPUT_MODE[col] ?? 'numeric'}
                 className={dragCls}
-                style={colAbsPos(col, index, COL_ALIGN[col])}
+                style={{ ...colAbsPos(col, index, COL_ALIGN[col]), ...fStyle(`col_${col}`) }}
                 {...dragAttr(`col_${col}`)}
                 data-row-cell="1"
                 value={item[col] ?? ''}
                 readOnly={dragMode}
                 placeholder={dragMode ? '' : COL_PLACEHOLDER[col]}
                 onChange={dragMode ? undefined : (e) => onUpdateLineItem(pageIndex, index, col, e.target.value)}
-                onFocus={dragMode ? undefined : () => onRowFocus(pageIndex, index)}
+                onFocus={dragMode ? undefined : () => { onRowFocus(pageIndex, index); onFieldFocus(pageIndex, `col_${col}`); }}
                 onKeyDown={dragMode ? undefined : (e) => {
                   if ((e.ctrlKey || e.metaKey) && e.key === 'Backspace') {
                     e.preventDefault();
@@ -296,19 +306,31 @@ function InvoicePage({
 
         {/* ── Total row ── (editable inputs, auto-filled from line amounts) */}
         <input type="text" inputMode="numeric" className={dragCls}
-          style={{ ...pos('totalRs'), textAlign: 'right', fontWeight: 'bold' }}
+          style={{ ...pos('totalRs'), ...fStyle('totalRs'), textAlign: 'right', fontWeight: fStyle('totalRs').fontWeight ?? 'bold' }}
           {...dragAttr('totalRs')}
           value={pageTotalRs ?? ''} readOnly={dragMode} placeholder=""
-          onChange={dragMode ? undefined : (e) => onFieldChange(pageIndex, 'totalRs', e.target.value)} />
+          onChange={dragMode ? undefined : (e) => onFieldChange(pageIndex, 'totalRs', e.target.value)}
+          onFocus={dragMode ? undefined : () => onFieldFocus(pageIndex, 'totalRs')} />
 
         <input type="text" inputMode="numeric" className={dragCls}
-          style={{ ...pos('totalP'), textAlign: 'right', fontWeight: 'bold' }}
+          style={{ ...pos('totalP'), ...fStyle('totalP'), textAlign: 'right', fontWeight: fStyle('totalP').fontWeight ?? 'bold' }}
           {...dragAttr('totalP')}
           value={pageTotalP ?? ''} readOnly={dragMode} placeholder=""
-          onChange={dragMode ? undefined : (e) => onFieldChange(pageIndex, 'totalP', e.target.value)} />
+          onChange={dragMode ? undefined : (e) => onFieldChange(pageIndex, 'totalP', e.target.value)}
+          onFocus={dragMode ? undefined : () => onFieldFocus(pageIndex, 'totalP')} />
 
         {rHandle('totalRs', layout.totalRs.left + layout.totalRs.width + cal.left - 1.5, layout.totalRs.top + cal.top, 5)}
         {rHandle('totalP',  layout.totalP.left  + layout.totalP.width  + cal.left - 1.5, layout.totalP.top  + cal.top, 5)}
+
+        {/* ── Amount in words ── */}
+        <textarea className={dragCls}
+          style={{ ...pos('amountWords'), ...fStyle('amountWords'), height: '12mm', resize: 'none', overflow: 'hidden' }}
+          {...dragAttr('amountWords')}
+          value={pageAmountWords ?? ''} readOnly={dragMode}
+          placeholder="Amount in words"
+          onChange={dragMode ? undefined : (e) => onFieldChange(pageIndex, 'amountWords', e.target.value)}
+          onFocus={dragMode ? undefined : () => onFieldFocus(pageIndex, 'amountWords')} />
+        {rHandle('amountWords', layout.amountWords.left + layout.amountWords.width + cal.left - 1.5, layout.amountWords.top + cal.top, 5)}
 
         {isContinued && (
           <div className="no-print" style={{ position: 'absolute', top: '5mm', left: '50%', transform: 'translateX(-50%)', fontSize: '10pt', color: '#6B7280' }}>

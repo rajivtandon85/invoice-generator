@@ -40,8 +40,11 @@ export const DEFAULT_LAYOUT = {
   },
 
   // Totals
-  totalRs:   { left: 169, top: 254, width: 14 },
-  totalP:    { left: 185, top: 254, width: 9 },
+  totalRs:     { left: 169, top: 254, width: 14 },
+  totalP:      { left: 185, top: 254, width: 9 },
+
+  // Amount in words
+  amountWords: { left: 20, top: 262, width: 170 },
 };
 
 export function loadLayout() {
@@ -92,6 +95,7 @@ export const FIELD_DEFS = [
   { key: 'address2',        label: 'Address line 2' },
   { key: 'totalRs',         label: 'Total Rs' },
   { key: 'totalP',          label: 'Total Paise' },
+  { key: 'amountWords',     label: 'Amount in Words' },
 ];
 
 export const LINE_ITEM_DEFS = [
