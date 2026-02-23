@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import InvoicePage, { MAX_ROWS } from './InvoicePage';
-import { loadLayout, saveLayout, resetLayout } from './layoutConfig';
+import { loadLayout, saveLayout, resetLayout, DEFAULT_LAYOUT } from './layoutConfig';
 import './invoice.css';
 
 const CALIBRATION_KEY = 'invoice-calibration';
@@ -177,7 +177,7 @@ function InvoiceGenerator() {
           const rupees = Math.floor(amount);
           const paise  = Math.round((amount - rupees) * 100);
           updated.amountRs = amount > 0 ? String(rupees) : '';
-          updated.amountP  = paise  > 0 ? String(paise)  : '';
+          updated.amountP  = paise  > 0 ? String(paise) : amount > 0 ? '00' : '';
         }
         return updated;
       });
@@ -186,7 +186,7 @@ function InvoiceGenerator() {
       const totalPaise  = Math.round((total - totalRupees) * 100);
       return { ...p, lineItems: newItems,
         totalRs: total > 0 ? String(totalRupees) : '',
-        totalP:  totalPaise > 0 ? String(totalPaise) : '',
+        totalP:  totalPaise > 0 ? String(totalPaise) : total > 0 ? '00' : '',
         amountWords: amountToWords(total > 0 ? totalRupees : 0, totalPaise > 0 ? totalPaise : 0),
       };
     }));
@@ -260,8 +260,8 @@ function InvoiceGenerator() {
         return sz * 0.3528 * 0.72; // baseline offset in mm
       };
 
-      const cal  = calibration;
-      const li   = layout.lineItems;
+      const cal  = { left: 0, top: 0 };
+      const li   = DEFAULT_LAYOUT.lineItems;
       const cols = li.columns;
 
       pages.forEach((page, pageIdx) => {
@@ -271,7 +271,6 @@ function InvoiceGenerator() {
         pdf.addImage(bgDataUrl, 'PNG', 0, 0, 210, 297);
 
         // Layer 2 — typed text
-        pdf.setFont(pdfFont, pdfStyle);
         pdf.setTextColor(0, 0, 0);
         const fs = page.fieldStyles || {};
 
@@ -284,7 +283,7 @@ function InvoiceGenerator() {
 
         // Header fields — each gets its own font
         const hf = (key, align = 'left') => {
-          const f = layout[key]; if (!f || !page[key]) return;
+          const f = DEFAULT_LAYOUT[key]; if (!f || !page[key]) return;
           const bo = applyFont(fs, key);
           const x = align === 'right'  ? f.left + cal.left + f.width
                   : align === 'center' ? f.left + cal.left + f.width / 2
@@ -311,16 +310,16 @@ function InvoiceGenerator() {
         });
 
         // Totals — bold by default
-        const trs = layout.totalRs;
-        const tp  = layout.totalP;
+        const trs = DEFAULT_LAYOUT.totalRs;
+        const tp  = DEFAULT_LAYOUT.totalP;
         let bo = applyFont(fs, 'totalRs', true);
         put(page.totalRs, trs.left + cal.left + trs.width, trs.top + cal.top + bo, 'right');
         bo = applyFont(fs, 'totalP', true);
-        put(page.totalP,  tp.left  + cal.left + tp.width,  tp.top  + cal.top + bo, 'right');
+        put(page.totalP, tp.left + cal.left + tp.width, tp.top + cal.top + bo, 'right');
 
         // Amount in words
-        if (page.amountWords && layout.amountWords) {
-          const aw = layout.amountWords;
+        if (page.amountWords && DEFAULT_LAYOUT.amountWords) {
+          const aw = DEFAULT_LAYOUT.amountWords;
           bo = applyFont(fs, 'amountWords');
           put(page.amountWords, aw.left + cal.left, aw.top + cal.top + bo, 'left', aw.width);
         }

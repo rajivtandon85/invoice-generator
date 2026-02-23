@@ -10,41 +10,43 @@
 
 const LAYOUT_KEY = 'invoice-layout';
 
+// Calibration offsets that were active when these positions were verified:
+// left offset: +1mm, top offset: +2.5mm — baked in so PDF needs no runtime adjustment.
 export const DEFAULT_LAYOUT = {
   // Bill info — row 1
-  billNo:          { left: 28, top: 70, width: 42 },
-  date:            { left: 93, top: 70, width: 35 },
+  billNo:          { left: 31.1,  top: 58.5,  width: 37   },
+  date:            { left: 84.7,  top: 57.7,  width: 35   },
 
   // Bill info — row 2
-  challanNo:       { left: 28, top: 79, width: 42 },
-  dispatchThrough: { left: 93, top: 79, width: 40 },
-  poNo:            { left: 155, top: 79, width: 38 },
+  challanNo:       { left: 35.9,  top: 66.5,  width: 32.5 },
+  dispatchThrough: { left: 106.2, top: 66.1,  width: 33.4 },
+  poNo:            { left: 160.5, top: 66.1,  width: 34.8 },
 
   // Client
-  ms:              { left: 20, top: 87, width: 175 },
-  address1:        { left: 22, top: 94, width: 173 },
-  address2:        { left: 20, top: 102, width: 175 },
+  ms:              { left: 28.7,  top: 75.9,  width: 165.2 },
+  address1:        { left: 29.5,  top: 96.9,  width: 164.8 },
+  address2:        { left: 29.3,  top: 86.2,  width: 164.9 },
 
   // Line items table geometry
   lineItems: {
-    firstRowTop: 120,
+    firstRowTop: 122.9,
     rowHeight: 8.5,
     columns: {
-      sno:         { left: 5,   width: 9  },
-      particulars: { left: 16,  width: 93 },
-      qty:         { left: 124, width: 16 },
-      rate:        { left: 141, width: 27 },
-      amountRs:    { left: 169, width: 14 },
-      amountP:     { left: 185, width: 9  },
+      sno:         { left: 7.8,   width: 9     },
+      particulars: { left: 20.3,  width: 101.2 },
+      qty:         { left: 129.5, width: 13.2  },
+      rate:        { left: 144.9, width: 17    },
+      amountRs:    { left: 169.2, width: 19.4  },
+      amountP:     { left: 192.7, width: 6.2   },
     },
   },
 
   // Totals
-  totalRs:     { left: 169, top: 254, width: 14 },
-  totalP:      { left: 185, top: 254, width: 9 },
+  totalRs:     { left: 165.7, top: 251.6, width: 21.5 },
+  totalP:      { left: 191.9, top: 251.0, width: 5.9  },
 
   // Amount in words
-  amountWords: { left: 20, top: 262, width: 170 },
+  amountWords: { left: 17,    top: 245.4, width: 109.4 },
 };
 
 export function loadLayout() {
