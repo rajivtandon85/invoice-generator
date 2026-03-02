@@ -23,9 +23,12 @@ function InvoicePage({
   pageIndex, calibration, layout, font, dragMode,
   onLayoutMove, onLayoutResize,
   billNo, date, challanNo, dispatchThrough, poNo, ms, address1, address2,
-  lineItems, pageTotalRs, pageTotalP, pageAmountWords,
+  lineItems,
+  pageCgstLabel, pageCgstRs, pageCgstP,
+  pageSgstLabel, pageSgstRs, pageSgstP,
+  pageTotalRs, pageTotalP, pageAmountWords,
   fieldStyles = {},
-  onFieldChange, onFieldFocus, onRemoveRow, onRowFocus, onUpdateLineItem,
+  onFieldChange, onFieldFocus, onTaxChange, onRemoveRow, onRowFocus, onUpdateLineItem,
   isContinued = false,
 }) {
   const a4Ref = useRef(null);
@@ -304,7 +307,57 @@ function InvoicePage({
             li.rowHeight * lineItems.length)
         )}
 
-        {/* ── Total row ── (editable inputs, auto-filled from line amounts) */}
+        {/* ── CGST row ── */}
+        <input type="text" className={dragCls}
+          style={{ ...pos('cgstLabel'), ...fStyle('cgstLabel') }}
+          {...dragAttr('cgstLabel')}
+          value={pageCgstLabel ?? ''} readOnly={dragMode} placeholder="CGST @ 9%"
+          onChange={dragMode ? undefined : (e) => onFieldChange(pageIndex, 'cgstLabel', e.target.value)}
+          onFocus={dragMode ? undefined : () => onFieldFocus(pageIndex, 'cgstLabel')} />
+        {rHandle('cgstLabel', layout.cgstLabel.left + layout.cgstLabel.width + cal.left - 1.5, layout.cgstLabel.top + cal.top, 5)}
+
+        <input type="text" inputMode="numeric" className={dragCls}
+          style={{ ...pos('cgstRs'), ...fStyle('cgstRs'), textAlign: 'right' }}
+          {...dragAttr('cgstRs')}
+          value={pageCgstRs ?? ''} readOnly={dragMode} placeholder=""
+          onChange={dragMode ? undefined : (e) => onTaxChange(pageIndex, 'cgstRs', e.target.value)}
+          onFocus={dragMode ? undefined : () => onFieldFocus(pageIndex, 'cgstRs')} />
+        {rHandle('cgstRs', layout.cgstRs.left + layout.cgstRs.width + cal.left - 1.5, layout.cgstRs.top + cal.top, 5)}
+
+        <input type="text" inputMode="numeric" className={dragCls}
+          style={{ ...pos('cgstP'), ...fStyle('cgstP'), textAlign: 'right' }}
+          {...dragAttr('cgstP')}
+          value={pageCgstP ?? ''} readOnly={dragMode} placeholder=""
+          onChange={dragMode ? undefined : (e) => onTaxChange(pageIndex, 'cgstP', e.target.value)}
+          onFocus={dragMode ? undefined : () => onFieldFocus(pageIndex, 'cgstP')} />
+        {rHandle('cgstP', layout.cgstP.left + layout.cgstP.width + cal.left - 1.5, layout.cgstP.top + cal.top, 5)}
+
+        {/* ── SGST row ── */}
+        <input type="text" className={dragCls}
+          style={{ ...pos('sgstLabel'), ...fStyle('sgstLabel') }}
+          {...dragAttr('sgstLabel')}
+          value={pageSgstLabel ?? ''} readOnly={dragMode} placeholder="SGST @ 9%"
+          onChange={dragMode ? undefined : (e) => onFieldChange(pageIndex, 'sgstLabel', e.target.value)}
+          onFocus={dragMode ? undefined : () => onFieldFocus(pageIndex, 'sgstLabel')} />
+        {rHandle('sgstLabel', layout.sgstLabel.left + layout.sgstLabel.width + cal.left - 1.5, layout.sgstLabel.top + cal.top, 5)}
+
+        <input type="text" inputMode="numeric" className={dragCls}
+          style={{ ...pos('sgstRs'), ...fStyle('sgstRs'), textAlign: 'right' }}
+          {...dragAttr('sgstRs')}
+          value={pageSgstRs ?? ''} readOnly={dragMode} placeholder=""
+          onChange={dragMode ? undefined : (e) => onTaxChange(pageIndex, 'sgstRs', e.target.value)}
+          onFocus={dragMode ? undefined : () => onFieldFocus(pageIndex, 'sgstRs')} />
+        {rHandle('sgstRs', layout.sgstRs.left + layout.sgstRs.width + cal.left - 1.5, layout.sgstRs.top + cal.top, 5)}
+
+        <input type="text" inputMode="numeric" className={dragCls}
+          style={{ ...pos('sgstP'), ...fStyle('sgstP'), textAlign: 'right' }}
+          {...dragAttr('sgstP')}
+          value={pageSgstP ?? ''} readOnly={dragMode} placeholder=""
+          onChange={dragMode ? undefined : (e) => onTaxChange(pageIndex, 'sgstP', e.target.value)}
+          onFocus={dragMode ? undefined : () => onFieldFocus(pageIndex, 'sgstP')} />
+        {rHandle('sgstP', layout.sgstP.left + layout.sgstP.width + cal.left - 1.5, layout.sgstP.top + cal.top, 5)}
+
+        {/* ── Total row ── (grand total: subtotal + CGST + SGST) */}
         <input type="text" inputMode="numeric" className={dragCls}
           style={{ ...pos('totalRs'), ...fStyle('totalRs'), textAlign: 'right', fontWeight: fStyle('totalRs').fontWeight ?? 'bold' }}
           {...dragAttr('totalRs')}

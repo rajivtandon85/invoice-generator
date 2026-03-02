@@ -24,13 +24,13 @@ export const DEFAULT_LAYOUT = {
 
   // Client
   ms:              { left: 28.7,  top: 75.9,  width: 165.2 },
-  address1:        { left: 29.5,  top: 96.9,  width: 164.8 },
+  address1:        { left: 29.2,  top: 95.3,  width: 164.8 },
   address2:        { left: 29.3,  top: 86.2,  width: 164.9 },
 
   // Line items table geometry
   lineItems: {
     firstRowTop: 122.9,
-    rowHeight: 8.5,
+    rowHeight: 7,
     columns: {
       sno:         { left: 7.8,   width: 9     },
       particulars: { left: 20.3,  width: 101.2 },
@@ -41,9 +41,17 @@ export const DEFAULT_LAYOUT = {
     },
   },
 
+  // CGST / SGST rows (label + Rs + P)
+  cgstLabel:   { left: 101.2, top: 230.0, width: 62   },
+  cgstRs:      { left: 166.7, top: 230.3, width: 21.5 },
+  cgstP:       { left: 192.9, top: 230.3, width: 5.9  },
+  sgstLabel:   { left: 101.2, top: 237.8, width: 62   },
+  sgstRs:      { left: 167.0, top: 237.8, width: 21.5 },
+  sgstP:       { left: 192.9, top: 238.1, width: 5.9  },
+
   // Totals
   totalRs:     { left: 165.7, top: 251.6, width: 21.5 },
-  totalP:      { left: 191.9, top: 251.0, width: 5.9  },
+  totalP:      { left: 191.9, top: 251.5, width: 5.9  },
 
   // Amount in words
   amountWords: { left: 17,    top: 245.4, width: 109.4 },
@@ -95,6 +103,12 @@ export const FIELD_DEFS = [
   { key: 'ms',              label: 'M/s' },
   { key: 'address1',        label: 'Address line 1' },
   { key: 'address2',        label: 'Address line 2' },
+  { key: 'cgstLabel',       label: 'CGST Label' },
+  { key: 'cgstRs',          label: 'CGST Rs' },
+  { key: 'cgstP',           label: 'CGST Paise' },
+  { key: 'sgstLabel',       label: 'SGST Label' },
+  { key: 'sgstRs',          label: 'SGST Rs' },
+  { key: 'sgstP',           label: 'SGST Paise' },
   { key: 'totalRs',         label: 'Total Rs' },
   { key: 'totalP',          label: 'Total Paise' },
   { key: 'amountWords',     label: 'Amount in Words' },

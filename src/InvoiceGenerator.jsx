@@ -40,6 +40,8 @@ const emptyPage = () => ({
   billNo: '', date: '', challanNo: '', dispatchThrough: '', poNo: '',
   ms: '', address1: '', address2: '',
   lineItems: [emptyRow(0)],
+  cgstLabel: 'CGST @ 9%', cgstRs: '', cgstP: '',
+  sgstLabel: 'SGST @ 9%', sgstRs: '', sgstP: '',
   totalRs: '', totalP: '', amountWords: '',
   fieldStyles: {}, // per-field font overrides keyed by field name / col_xxx
 });
@@ -78,6 +80,12 @@ function InvoiceGenerator() {
     const draft = loadDraft() || [emptyPage()];
     return draft.map(p => ({
       ...p,
+      cgstLabel:    p.cgstLabel    ?? 'CGST @ 9%',
+      cgstRs:       p.cgstRs       ?? '',
+      cgstP:        p.cgstP        ?? '',
+      sgstLabel:    p.sgstLabel    ?? 'SGST @ 9%',
+      sgstRs:       p.sgstRs       ?? '',
+      sgstP:        p.sgstP        ?? '',
       amountWords:  p.amountWords  || amountToWords(p.totalRs, p.totalP),
       fieldStyles:  p.fieldStyles  || {},
     }));
@@ -181,13 +189,43 @@ function InvoiceGenerator() {
         }
         return updated;
       });
-      const total       = newItems.reduce((acc, it) => acc + (parseFloat(it.amountRs) || 0) + (parseFloat(it.amountP) || 0) / 100, 0);
-      const totalRupees = Math.floor(total);
-      const totalPaise  = Math.round((total - totalRupees) * 100);
+      const subtotal     = newItems.reduce((acc, it) => acc + (parseFloat(it.amountRs) || 0) + (parseFloat(it.amountP) || 0) / 100, 0);
+      const cgstAmt      = subtotal * 0.09;
+      const cgstRupees   = Math.floor(cgstAmt);
+      const cgstPaise    = Math.round((cgstAmt - cgstRupees) * 100);
+      const sgstAmt      = subtotal * 0.09;
+      const sgstRupees   = Math.floor(sgstAmt);
+      const sgstPaise    = Math.round((sgstAmt - sgstRupees) * 100);
+      const grandTotal   = subtotal + cgstAmt + sgstAmt;
+      const totalRupees  = Math.floor(grandTotal);
+      const totalPaise   = Math.round((grandTotal - totalRupees) * 100);
       return { ...p, lineItems: newItems,
-        totalRs: total > 0 ? String(totalRupees) : '',
-        totalP:  totalPaise > 0 ? String(totalPaise) : total > 0 ? '00' : '',
-        amountWords: amountToWords(total > 0 ? totalRupees : 0, totalPaise > 0 ? totalPaise : 0),
+        cgstRs: subtotal > 0 ? String(cgstRupees) : '',
+        cgstP:  cgstPaise > 0 ? String(cgstPaise) : subtotal > 0 ? '00' : '',
+        sgstRs: subtotal > 0 ? String(sgstRupees) : '',
+        sgstP:  sgstPaise > 0 ? String(sgstPaise) : subtotal > 0 ? '00' : '',
+        totalRs: grandTotal > 0 ? String(totalRupees) : '',
+        totalP:  totalPaise > 0 ? String(totalPaise) : grandTotal > 0 ? '00' : '',
+        amountWords: amountToWords(grandTotal > 0 ? totalRupees : 0, totalPaise > 0 ? totalPaise : 0),
+      };
+    }));
+  }, []);
+
+  // Called when user manually edits a CGST/SGST value — recalculates grand total
+  const onTaxChange = useCallback((pageIndex, field, value) => {
+    setPages(prev => prev.map((p, i) => {
+      if (i !== pageIndex) return p;
+      const updated = { ...p, [field]: value };
+      const subtotal   = p.lineItems.reduce((acc, it) => acc + (parseFloat(it.amountRs) || 0) + (parseFloat(it.amountP) || 0) / 100, 0);
+      const cgst       = (parseFloat(updated.cgstRs) || 0) + (parseFloat(updated.cgstP) || 0) / 100;
+      const sgst       = (parseFloat(updated.sgstRs) || 0) + (parseFloat(updated.sgstP) || 0) / 100;
+      const grandTotal = subtotal + cgst + sgst;
+      const totalRs    = Math.floor(grandTotal);
+      const totalP     = Math.round((grandTotal - totalRs) * 100);
+      return { ...updated,
+        totalRs: grandTotal > 0 ? String(totalRs) : '',
+        totalP:  totalP > 0 ? String(totalP) : grandTotal > 0 ? '00' : '',
+        amountWords: amountToWords(grandTotal > 0 ? totalRs : 0, totalP > 0 ? totalP : 0),
       };
     }));
   }, []);
@@ -309,10 +347,26 @@ function InvoiceGenerator() {
           });
         });
 
-        // Totals — bold by default
+        // CGST row
+        hf('cgstLabel');
+        const cgstRsF = DEFAULT_LAYOUT.cgstRs; const cgstPF = DEFAULT_LAYOUT.cgstP;
+        let bo = applyFont(fs, 'cgstRs');
+        put(page.cgstRs, cgstRsF.left + cal.left + cgstRsF.width, cgstRsF.top + cal.top + bo, 'right');
+        bo = applyFont(fs, 'cgstP');
+        put(page.cgstP,  cgstPF.left  + cal.left + cgstPF.width,  cgstPF.top  + cal.top + bo, 'right');
+
+        // SGST row
+        hf('sgstLabel');
+        const sgstRsF = DEFAULT_LAYOUT.sgstRs; const sgstPF = DEFAULT_LAYOUT.sgstP;
+        bo = applyFont(fs, 'sgstRs');
+        put(page.sgstRs, sgstRsF.left + cal.left + sgstRsF.width, sgstRsF.top + cal.top + bo, 'right');
+        bo = applyFont(fs, 'sgstP');
+        put(page.sgstP,  sgstPF.left  + cal.left + sgstPF.width,  sgstPF.top  + cal.top + bo, 'right');
+
+        // Grand total — bold by default
         const trs = DEFAULT_LAYOUT.totalRs;
         const tp  = DEFAULT_LAYOUT.totalP;
-        let bo = applyFont(fs, 'totalRs', true);
+        bo = applyFont(fs, 'totalRs', true);
         put(page.totalRs, trs.left + cal.left + trs.width, trs.top + cal.top + bo, 'right');
         bo = applyFont(fs, 'totalP', true);
         put(page.totalP, tp.left + cal.left + tp.width, tp.top + cal.top + bo, 'right');
@@ -373,6 +427,24 @@ function InvoiceGenerator() {
           className={`px-3 py-2 sm:px-4 text-sm sm:text-base rounded-lg font-medium ${dragMode ? 'bg-orange-500 text-white ring-2 ring-orange-300' : 'bg-purple-600 hover:bg-purple-700 text-white'}`}>
           {dragMode ? '✋ Done' : '↕ Adjust'}
         </button>
+
+        {/* Row height control */}
+        <label className="flex items-center gap-1 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg px-2 py-1">
+          Row H
+          <input type="number" min="4" max="20" step="0.5"
+            value={layout.lineItems.rowHeight}
+            onChange={(e) => {
+              const v = Math.max(4, Math.min(20, parseFloat(e.target.value) || 8.5));
+              setLayout(prev => {
+                const next = structuredClone(prev);
+                next.lineItems.rowHeight = v;
+                return next;
+              });
+            }}
+            className="w-14 text-center border border-gray-300 rounded px-1 py-0.5 text-sm"
+          />
+          mm
+        </label>
       </div>
 
       {/* Font panel — context-aware: applies to focused field, or globally if none */}
@@ -503,10 +575,13 @@ function InvoiceGenerator() {
                   challanNo={page.challanNo}   dispatchThrough={page.dispatchThrough}   poNo={page.poNo}
                   ms={page.ms}   address1={page.address1}   address2={page.address2}
                   lineItems={page.lineItems}
+                  pageCgstLabel={page.cgstLabel}  pageCgstRs={page.cgstRs}  pageCgstP={page.cgstP}
+                  pageSgstLabel={page.sgstLabel}  pageSgstRs={page.sgstRs}  pageSgstP={page.sgstP}
                   pageTotalRs={page.totalRs}   pageTotalP={page.totalP}   pageAmountWords={page.amountWords}
                   fieldStyles={page.fieldStyles || {}}
                   onFieldChange={onFieldChange}
                   onFieldFocus={onFieldFocus}
+                  onTaxChange={onTaxChange}
                   onRemoveRow={onRemoveRow}
                   onRowFocus={onRowFocus}
                   onUpdateLineItem={onUpdateLineItem}
