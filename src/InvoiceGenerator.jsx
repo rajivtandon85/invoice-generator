@@ -36,6 +36,61 @@ const emptyRow = (index = 0) => ({
   sno: String(index + 1), particulars: '', qty: '', rate: '', amountRs: '', amountP: '',
 });
 
+function makeSamplePage() {
+  const items = [
+    { particulars: 'MS Pipes 2" (6m length)',              qty: '10',  rate: '850'   },
+    { particulars: 'MS Angle 50x50x6mm',                   qty: '25',  rate: '320'   },
+    { particulars: 'GI Wire 8 SWG (per kg)',               qty: '15',  rate: '95'    },
+    { particulars: 'Hex Bolts M12x50 (per box)',           qty: '8',   rate: '240'   },
+    { particulars: 'Welding Electrodes 3.15mm (pkt)',      qty: '12',  rate: '185'   },
+    { particulars: 'MS Flat 50x6mm (per mtr)',             qty: '30',  rate: '148'   },
+    { particulars: 'GI Sheet 18 Gauge (per sheet)',        qty: '20',  rate: '1250'  },
+    { particulars: 'MS Round Bar 20mm (per kg)',           qty: '50',  rate: '72'    },
+    { particulars: 'Nut & Bolt Set M10 (per 100 pcs)',     qty: '5',   rate: '380'   },
+    { particulars: 'Grinding Disc 4" (per box of 25)',     qty: '6',   rate: '425'   },
+    { particulars: 'MS Channel 100x50mm (per mtr)',        qty: '18',  rate: '520'   },
+    { particulars: 'Cutting Disc 14" (per pc)',            qty: '40',  rate: '65'    },
+    { particulars: 'SS Sheet 304 Grade 1.2mm (per kg)',    qty: '22',  rate: '310'   },
+    { particulars: 'Mild Steel Plate 6mm (per kg)',        qty: '75',  rate: '88'    },
+    { particulars: 'GI Pipe 1.5" Class B (per mtr)',       qty: '35',  rate: '195'   },
+    { particulars: 'Drill Bits HSS 10mm (per set)',        qty: '10',  rate: '275'   },
+  ];
+  const lineItems = items.map((it, i) => {
+    const amount  = parseFloat(it.qty) * parseFloat(it.rate);
+    const rupees  = Math.floor(amount);
+    const paise   = Math.round((amount - rupees) * 100);
+    return { sno: String(i + 1), ...it,
+      amountRs: String(rupees),
+      amountP:  paise > 0 ? String(paise) : '00',
+    };
+  });
+  const subtotal   = lineItems.reduce((a, it) => a + parseFloat(it.amountRs) + parseFloat(it.amountP) / 100, 0);
+  const cgstAmt    = subtotal * 0.09;
+  const cgstRs     = Math.floor(cgstAmt);
+  const cgstP      = Math.round((cgstAmt - cgstRs) * 100);
+  const sgstAmt    = subtotal * 0.09;
+  const sgstRs     = Math.floor(sgstAmt);
+  const sgstP      = Math.round((sgstAmt - sgstRs) * 100);
+  const grand      = subtotal + cgstAmt + sgstAmt;
+  const totalRs    = Math.floor(grand);
+  const totalP     = Math.round((grand - totalRs) * 100);
+  return {
+    billNo: '2024-25/187', date: '05/03/2026',
+    challanNo: 'CH-0094', dispatchThrough: 'DTDC Courier', poNo: 'PO-78321',
+    ms: 'M/s Sharma Trading Co. Pvt. Ltd.',
+    address1: '42, Industrial Area Phase-II, Panchkula',
+    address2: 'Haryana - 134113',
+    lineItems,
+    cgstLabel: 'CGST @ 9%',
+    cgstRs: String(cgstRs), cgstP: cgstP > 0 ? String(cgstP) : '00',
+    sgstLabel: 'SGST @ 9%',
+    sgstRs: String(sgstRs), sgstP: sgstP > 0 ? String(sgstP) : '00',
+    totalRs: String(totalRs), totalP: totalP > 0 ? String(totalP) : '00',
+    amountWords: amountToWords(totalRs, totalP),
+    fieldStyles: {},
+  };
+}
+
 const emptyPage = () => ({
   billNo: '', date: '', challanNo: '', dispatchThrough: '', poNo: '',
   ms: '', address1: '', address2: '',
@@ -410,6 +465,10 @@ function InvoiceGenerator() {
           }}
           className={`px-3 py-2 sm:px-4 text-sm sm:text-base rounded-lg ${activeRow ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>
           ➖ Remove Row
+        </button>
+        <button onClick={() => setPages([makeSamplePage()])}
+          className="px-3 py-2 sm:px-4 text-sm sm:text-base bg-amber-500 hover:bg-amber-600 text-white rounded-lg">
+          🧪 Test Data
         </button>
         <button onClick={() => { if (window.confirm('Clear all fields?')) setPages([emptyPage()]); }}
           className="px-3 py-2 sm:px-4 text-sm sm:text-base bg-red-600 hover:bg-red-700 text-white rounded-lg">
