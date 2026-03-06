@@ -43,15 +43,15 @@ export const DEFAULT_LAYOUT = {
 
   // CGST / SGST rows (label + Rs + P)
   cgstLabel:   { left: 101.2, top: 230.0, width: 62   },
-  cgstRs:      { left: 166.7, top: 230.3, width: 21.5 },
-  cgstP:       { left: 192.9, top: 230.3, width: 5.9  },
+  cgstRs:      { left: 169.2, top: 230.3, width: 19.4 },
+  cgstP:       { left: 192.7, top: 230.3, width: 6.2  },
   sgstLabel:   { left: 101.2, top: 237.8, width: 62   },
-  sgstRs:      { left: 167.0, top: 237.8, width: 21.5 },
-  sgstP:       { left: 192.9, top: 238.1, width: 5.9  },
+  sgstRs:      { left: 169.2, top: 237.8, width: 19.4 },
+  sgstP:       { left: 192.7, top: 238.1, width: 6.2  },
 
-  // Totals
-  totalRs:     { left: 165.7, top: 251.6, width: 21.5 },
-  totalP:      { left: 191.9, top: 251.5, width: 5.9  },
+  // Totals — same left/width as amountRs/amountP columns so right edges align
+  totalRs:     { left: 169.2, top: 251.6, width: 19.4 },
+  totalP:      { left: 192.7, top: 251.5, width: 6.2  },
 
   // Amount in words
   amountWords: { left: 17,    top: 245.4, width: 109.4 },
